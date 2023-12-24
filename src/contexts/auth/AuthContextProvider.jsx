@@ -1,13 +1,18 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
+  getAuth,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
+  reauthenticateWithCredential,
 } from "firebase/auth";
+
 import { auth } from "../../firebase";
 import { notify } from "../../components/Toastify";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 const ADMINS = ["admin@gmail.com"];
 export const authContext = createContext();
 
@@ -20,12 +25,26 @@ export function useAuth() {
 }
 
 const AuthContextsProvider = ({ children }) => {
+  const navigate = useNavigate();
+  const Apiusers = "http://localhost:8000/users_extra_info";
   const [user, setUser] = useState(null);
-
-  async function register(email, password, displayName, name_and_surname) {
+  const [loading, setLoading] = useState(null);
+  async function register(email, password, displayName) {
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(auth.currentUser, { displayName, name_and_surname });
+      await axios.post(Apiusers, {
+        phoneNumber: "",
+        email: email,
+        photoUrl: "",
+        description: "",
+        username: displayName,
+        name: "",
+        gender: "",
+        followers: [],
+        followed: [],
+        saved_posts: [],
+        id: auth.currentUser.uid,
+      });
     } catch (error) {
       notify(error.code.split("/")[1], "error");
     }
@@ -43,12 +62,14 @@ const AuthContextsProvider = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
     });
+
     return () => unsubscribe();
   }, []);
 
   async function logout() {
     try {
       await signOut(auth);
+      navigate("/login");
     } catch (e) {
       notify(e.code.split("/")[1], "error");
     }
@@ -62,7 +83,15 @@ const AuthContextsProvider = ({ children }) => {
   }
 
   return (
-    <authContext.Provider value={{ register, user, logout, login, isAdmin }}>
+    <authContext.Provider
+      value={{
+        register,
+        user,
+        logout,
+        login,
+        isAdmin,
+        loading,
+      }}>
       {children}
     </authContext.Provider>
   );
